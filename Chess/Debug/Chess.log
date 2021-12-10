@@ -1,0 +1,4 @@
+﻿  ChessPlayer.cpp
+C:\Users\avita\Desktop\Chess 3.0 - 30 marks (latest, shittest)\Chess\ChessPlayer.cpp(394,19): warning C4101: 'bestEvaluation': unreferenced local variable
+  Chess.vcxproj -> C:\Users\avita\Desktop\Chess 3.0 - 30 marks (latest, shittest)\Debug\Chess.exe
+  0 File(s) copied
