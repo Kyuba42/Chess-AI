@@ -1,4 +1,14 @@
 ﻿  ChessPlayer.cpp
-C:\Users\avita\Desktop\Chess 3.0 - 30 marks (latest, shittest)\Chess\ChessPlayer.cpp(394,19): warning C4101: 'bestEvaluation': unreferenced local variable
-  Chess.vcxproj -> C:\Users\avita\Desktop\Chess 3.0 - 30 marks (latest, shittest)\Debug\Chess.exe
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(192,99): warning C4305: 'argument': truncation from 'int' to 'float'
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(364,20): warning C4553: '==': result of expression not used; did you intend '='?
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(418,20): warning C4553: '==': result of expression not used; did you intend '='?
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(469,20): warning C4553: '==': result of expression not used; did you intend '='?
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(561,20): warning C4553: '==': result of expression not used; did you intend '='?
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(705,19): warning C4101: 'bestEvaluation': unreferenced local variable
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(902,12): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(861,19): warning C4101: 'bestEvaluation': unreferenced local variable
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(958,11): warning C4244: '=': conversion from 'float' to 'int', possible loss of data
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(966,11): warning C4244: 'return': conversion from 'int' to 'float', possible loss of data
+C:\Users\avita\Documents\GitRepos\Chess-AI\Chess\ChessPlayer.cpp(982,9): warning C4244: 'return': conversion from 'int' to 'float', possible loss of data
+  Chess.vcxproj -> C:\Users\avita\Documents\GitRepos\Chess-AI\Debug\Chess.exe
   0 File(s) copied

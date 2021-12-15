@@ -19,12 +19,19 @@ class Move;
 
 enum class PieceWeighting : int
 {
-	QUEEN = 90,
-	ROOK =  50,
-	KNIGHT = 30,
-	BISHOP = 30,
-	PAWN = 10,
-	KING = 1000
+	QUEEN = 1000,
+	ROOK = 500,
+	KNIGHT = 300,
+	BISHOP = 350,
+	PAWN = 100,
+	KING = 10000
+};
+
+enum class GamePhase : int
+{
+	OPEN = 0,
+	MID = 1,
+	END = 2,
 };
 
 struct MinMaxStruct
@@ -64,6 +71,9 @@ protected:
 	float												MiniMax(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces, PieceColor colour, float alpha, float beta, int currentDepth);
 	std::shared_ptr<Move>					MiniMaxRoot(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces, PieceColor colour, float alpha, float beta, int currentDepth);
 
+	std::shared_ptr<Move>					negamaxRoot(int alpha, int beta, int depth, Board* pBoard, PieceColor pColour, vecPieces pieces);
+	float												negamax(int alpha, int beta, int depth, Board* pBoard, PieceColor pColour);
+	int												search(int depth);
 
 private:
 	PieceColor			m_colour;
@@ -74,8 +84,16 @@ private:
 	MinMaxStruct		minMax;
 	float						Evaluation(Board* currentBoard, PieceColor colour); // PieceInPostion vPieces,
 	float						MaterialCount(Board* currentBoard);
+	void						OpeningCalculations();
+	void						EndGameCalculations();
+
 	PieceColor*			InvertColour(PieceColor* colToInvert);
 	bool						m_bAI;
+
+	float						StartGameScore = 0;
+	float						CurrentGameScore = 999999;
+//	bool						IsEndgame = false;
+	GamePhase			gamePhase;
 
 };
 

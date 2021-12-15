@@ -28,6 +28,7 @@ ChessPlayer::ChessPlayer(Board* pBoard, GameStatus* pGameStatus, Gameplay* pGame
 	m_bAI = false;
 
 	m_colour_copy = m_colour;
+	gamePhase = GamePhase::OPEN;
 }
 
 unsigned int ChessPlayer::getAllFriendlyLivePieces(vecPieces& vpieces)
@@ -198,6 +199,8 @@ bool ChessPlayer::chooseAIMove(std::shared_ptr<Move>* moveToMake, bool inCheck)
 	return true;
 }
 
+//tempMove = negamaxRoot(ALPHA, BETA, 5, m_pBoard, m_colour, fPieces);
+
 float ChessPlayer::Evaluation(Board* currentBoard, PieceColor colour) // PieceInPostion currentPiece,
 {
 	float EvalScore;
@@ -205,7 +208,6 @@ float ChessPlayer::Evaluation(Board* currentBoard, PieceColor colour) // PieceIn
 
 	if (colour != m_colour)
 		EvalScore = EvalScore * -1;
-
 	//If it can be taken by another piece
 	//If it will check the other king
 	//Can take piece of more value
@@ -233,6 +235,9 @@ float ChessPlayer::MaterialCount(Board* currentBoard) // something in here is br
 	float		fPosTotal = 0;
 	float		ePosTotal = 0;
 
+	float		fPosTotalEnd = 0; //used during mid 
+	float		ePosTotalEnd = 0;
+
 	float		fPawns = 0;
 	float		ePawns = 0;
 
@@ -251,105 +256,397 @@ float ChessPlayer::MaterialCount(Board* currentBoard) // something in here is br
 	float		fKing = 0;
 	float		eKing = 0;
 
+	float fKingMoveScore = 0;
+	float eKingMoveScore = 0;
+
 	EvaluationTables	tables;
 
-	for (unsigned int i = 0; i < friendly.size(); i++)
+	//search different Eval tables for positioning depending on gamephase
+
+	if (gamePhase == GamePhase::OPEN)
 	{
-		fMoveTotal += getValidMovesForPiece(friendly[i]).size();
-		switch (friendly[i].piece->getType())
+		for (unsigned int i = 0; i < friendly.size(); i++)
 		{
-		case PieceType::PAWN:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhitePawnTable[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.BlackPawnTable[friendly[i].row][friendly[i].col];
-			fPawns++;
-			break;
-		case PieceType::KNIGHT:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhiteKnightTable[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.BlackKnightTable[friendly[i].row][friendly[i].col];
-			fKnights++;
-			break;
-		case PieceType::BISHOP:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhiteBishopTable[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.BlackBishopTable[friendly[i].row][friendly[i].col];
-			fBishops++;
-			break;
-		case PieceType::ROOK:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhiteRookTable[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.BlackRookTable[friendly[i].row][friendly[i].col];
-			fRooks++;
-			break;
-		case PieceType::QUEEN:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhiteQueenTable[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.BlackQueenTable[friendly[i].row][friendly[i].col];
-			fQueens++;
-			break;
-		case PieceType::KING:
-			if (friendlyColour == PieceColor::WHITE)
-				fPosTotal = tables.WhiteKingTableMid[friendly[i].row][friendly[i].col];
-			else
-				fPosTotal = tables.WhiteKingTableMid[friendly[i].row][friendly[i].col];
-			fKing++;
-			break;
+			fMoveTotal += getValidMovesForPiece(friendly[i]).size();
+			switch (friendly[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhitePawnTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackPawnTableOpen[friendly[i].row][friendly[i].col];
+				fPawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteKnightTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackKnightTableOpen[friendly[i].row][friendly[i].col];
+				fKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteBishopTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackBishopTableOpen[friendly[i].row][friendly[i].col];
+				fBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteRookTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackRookTableOpen[friendly[i].row][friendly[i].col];
+				fRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteQueenTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackQueenTableOpen[friendly[i].row][friendly[i].col];
+				fQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteKingTableOpen[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackKingTableOpen[friendly[i].row][friendly[i].col];
+				fKing++;
+				break;
+			}
+		}
+
+		for (unsigned int i = 0; i < enemy.size(); i++)
+		{
+			eMoveTotal += getValidMovesForPiece(enemy[i]).size();
+			switch (enemy[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhitePawnTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackPawnTableOpen[enemy[i].row][enemy[i].col];
+				ePawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteKnightTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackKnightTableOpen[enemy[i].row][enemy[i].col];
+				eKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteBishopTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackBishopTableOpen[enemy[i].row][enemy[i].col];
+				eBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteRookTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackRookTableOpen[enemy[i].row][enemy[i].col];
+				eRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteQueenTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackQueenTableOpen[enemy[i].row][enemy[i].col];
+				eQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteKingTableOpen[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackKingTableOpen[enemy[i].row][enemy[i].col];
+				eKingMoveScore == getValidMovesForPiece(enemy[i]).size();
+				eKing++;
+				break;
+			}
 		}
 	}
-
-	for (unsigned int i = 0; i < enemy.size(); i++)
+	else if (gamePhase == GamePhase::END)
 	{
-		eMoveTotal += getValidMovesForPiece(enemy[i]).size();
-		switch (enemy[i].piece->getType())
+		for (unsigned int i = 0; i < friendly.size(); i++)
 		{
-		case PieceType::PAWN:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhitePawnTable[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackPawnTable[enemy[i].row][enemy[i].col];
-			ePawns++;
-			break;
-		case PieceType::KNIGHT:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhiteKnightTable[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackKnightTable[enemy[i].row][enemy[i].col];
-			eKnights++;
-			break;
-		case PieceType::BISHOP:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhiteBishopTable[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackBishopTable[enemy[i].row][enemy[i].col];
-			eBishops++;
-			break;
-		case PieceType::ROOK:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhiteRookTable[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackRookTable[enemy[i].row][enemy[i].col];
-			eRooks++;
-			break;
-		case PieceType::QUEEN:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhiteQueenTable[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackQueenTable[enemy[i].row][enemy[i].col];
-			eQueens++;
-			break;
-		case PieceType::KING:
-			if (friendlyColour != PieceColor::WHITE)
-				ePosTotal = tables.WhiteKingTableMid[enemy[i].row][enemy[i].col];
-			else
-				ePosTotal = tables.BlackKingTableMid[enemy[i].row][enemy[i].col];
-			eKing++;
-			break;
+			fMoveTotal += getValidMovesForPiece(friendly[i]).size();
+			switch (friendly[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhitePawnTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackPawnTableEnd[friendly[i].row][friendly[i].col];
+				fPawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteKnightTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackKnightTableEnd[friendly[i].row][friendly[i].col];
+				fKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteBishopTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackBishopTableEnd[friendly[i].row][friendly[i].col];
+				fBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteRookTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackRookTableEnd[friendly[i].row][friendly[i].col];
+				fRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteQueenTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.BlackQueenTableEnd[friendly[i].row][friendly[i].col];
+				fQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour == PieceColor::WHITE)
+					fPosTotal += tables.WhiteKingTableEnd[friendly[i].row][friendly[i].col];
+				else
+					fPosTotal += tables.WhiteKingTableEnd[friendly[i].row][friendly[i].col];
+
+				fKingMoveScore == getValidMovesForPiece(friendly[i]).size();
+				fKing++;
+				break;
+			}
+		}
+
+		for (unsigned int i = 0; i < enemy.size(); i++)
+		{
+			eMoveTotal += getValidMovesForPiece(enemy[i]).size();
+			switch (enemy[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhitePawnTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackPawnTableEnd[enemy[i].row][enemy[i].col];
+				ePawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteKnightTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackKnightTableEnd[enemy[i].row][enemy[i].col];
+				eKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteBishopTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackBishopTableEnd[enemy[i].row][enemy[i].col];
+				eBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteRookTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackRookTableEnd[enemy[i].row][enemy[i].col];
+				eRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteQueenTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackQueenTableEnd[enemy[i].row][enemy[i].col];
+				eQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour != PieceColor::WHITE)
+					ePosTotal += tables.WhiteKingTableEnd[enemy[i].row][enemy[i].col];
+				else
+					ePosTotal += tables.BlackKingTableEnd[enemy[i].row][enemy[i].col];
+				eKingMoveScore == getValidMovesForPiece(enemy[i]).size();
+				eKing++;
+				break;
+			}
+		}
+	}
+	else if (gamePhase == GamePhase::MID)
+	{
+		for (unsigned int i = 0; i < friendly.size(); i++)
+		{
+			fMoveTotal += getValidMovesForPiece(friendly[i]).size();
+			switch (friendly[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhitePawnTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhitePawnTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackPawnTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackPawnTableEnd[friendly[i].row][friendly[i].col];
+				}
+				fPawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhiteKnightTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhiteKnightTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackKnightTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackKnightTableEnd[friendly[i].row][friendly[i].col];
+				}
+				fKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhiteBishopTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhiteBishopTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackBishopTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackBishopTableEnd[friendly[i].row][friendly[i].col];
+				}
+				fBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhiteRookTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhiteRookTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackRookTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackRookTableEnd[friendly[i].row][friendly[i].col];
+				}
+				fRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhiteQueenTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhiteQueenTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackQueenTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackQueenTableEnd[friendly[i].row][friendly[i].col];
+				}
+
+				fQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour == PieceColor::WHITE)
+				{
+					fPosTotal += tables.WhiteKingTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.WhiteKingTableEnd[friendly[i].row][friendly[i].col];
+				}
+				else
+				{
+					fPosTotal += tables.BlackKingTableOpen[friendly[i].row][friendly[i].col];
+					fPosTotalEnd += tables.BlackKingTableEnd[friendly[i].row][friendly[i].col];
+				}
+
+
+				fKingMoveScore == getValidMovesForPiece(friendly[i]).size();
+				fKing++;
+				break;
+			}
+		}
+
+		for (unsigned int i = 0; i < enemy.size(); i++)
+		{
+			eMoveTotal += getValidMovesForPiece(enemy[i]).size();
+			switch (enemy[i].piece->getType())
+			{
+			case PieceType::PAWN:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal += tables.WhitePawnTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd += tables.WhitePawnTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal += tables.BlackPawnTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd += tables.BlackPawnTableEnd[enemy[i].row][enemy[i].col];
+				}
+				ePawns++;
+				break;
+			case PieceType::KNIGHT:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal += tables.WhiteKnightTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotal = tables.WhiteKnightTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal = tables.BlackKnightTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd = tables.BlackKnightTableEnd[enemy[i].row][enemy[i].col];
+				}
+				eKnights++;
+				break;
+			case PieceType::BISHOP:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal += tables.WhiteBishopTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd += tables.WhiteBishopTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal += tables.BlackBishopTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd += tables.BlackBishopTableEnd[enemy[i].row][enemy[i].col];
+				}
+				eBishops++;
+				break;
+			case PieceType::ROOK:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal = tables.WhiteRookTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd = tables.WhiteRookTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal = tables.BlackRookTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd = tables.BlackRookTableEnd[enemy[i].row][enemy[i].col];
+				}
+				eRooks++;
+				break;
+			case PieceType::QUEEN:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal += tables.WhiteQueenTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd += tables.WhiteQueenTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal += tables.BlackQueenTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotal += tables.BlackQueenTableEnd[enemy[i].row][enemy[i].col];
+				}
+				eQueens++;
+				break;
+			case PieceType::KING:
+				if (friendlyColour != PieceColor::WHITE)
+				{
+					ePosTotal = tables.WhiteKingTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd = tables.WhiteKingTableEnd[enemy[i].row][enemy[i].col];
+				}
+				else
+				{
+					ePosTotal = tables.BlackKingTableOpen[enemy[i].row][enemy[i].col];
+					ePosTotalEnd = tables.BlackKingTableEnd[enemy[i].row][enemy[i].col];
+				}
+				eKing++;
+				break;
+			}
 		}
 	}
 
@@ -367,19 +664,26 @@ float ChessPlayer::MaterialCount(Board* currentBoard) // something in here is br
 	eQueens = eQueens * (int)PieceWeighting::QUEEN;
 	eKing = eKing * (int)PieceWeighting::KING;
 
-	fMaterial = (fKing + fPawns + fKnights + fBishops + fRooks + fQueens) + fMoveTotal + fPosTotal;		 //Add up total weighting of pieces + the total amount of moves that can be made (friendly pieces)
-	eMaterial = (eKing + ePawns + eKnights + eBishops + eRooks + eQueens) + eMoveTotal  + ePosTotal;		//Add up total weighting of pieces + the total amount of moves that can be made (enemy pieces)
+	fMaterial = (fKing + fPawns + fKnights + fBishops + fRooks + fQueens);		 //Add up total weighting of pieces + the total amount of moves that can be made (friendly pieces)
+	eMaterial = (eKing + ePawns + eKnights + eBishops + eRooks + eQueens);		//Add up total weighting of pieces + the total amount of moves that can be made (enemy pieces)
 
-	cout << "fMaterial: " << fMaterial << "\n";
-	cout << "eMaterial: " << eMaterial << "\n";
+	//Opening and Closing implementation, Numbers feel extremely arbitrary but unsure how to rescale
 
-	totalMaterial = ((fMaterial + fMoveTotal + fPosTotal) / (eMaterial + eMoveTotal + ePosTotal));
+	//  interpolate score in the middlegame
+	/*if (gamePhase == GamePhase::MID)
+	{
+		totalMaterial = (fPosTotal * (500+fMaterial) + fPosTotalEnd * (5900 - (500+fMaterial))) / 5900;
+		totalMaterial -= (ePosTotal * (500 + eMaterial) + ePosTotalEnd * (5900 - (500 + eMaterial))) / 5900;
+	}
+	else if (gamePhase == GamePhase::OPEN ||gamePhase == GamePhase::END ) totalMaterial = ((fMaterial + fMoveTotal + fPosTotal) / (eMaterial + eMoveTotal + ePosTotal));*/
+
+	totalMaterial = ((fMaterial + fMoveTotal + fPosTotal) / (eMaterial + eMoveTotal + ePosTotal)); // should get unit count, number of moves and evaluation table moves and divide them by the other teams total
 
 	return totalMaterial;
-
-	//- 0.5(D - D' + B-B' + I - I')
-	//D, B, I = Doubled, Blocked and Isolated pawns
 }
+//- 0.5(D - D' + B-B' + I - I')
+//D, B, I = Doubled, Blocked and Isolated pawns
+
 
 PieceColor* ChessPlayer::InvertColour(PieceColor* colToInvert)
 {
@@ -444,6 +748,7 @@ std::shared_ptr<Move> ChessPlayer::MiniMaxRoot(Board* pBoard, vecPieces& fPieces
 	return bestMove;
 }
 
+
 float ChessPlayer::MiniMax(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces, PieceColor pColour, float alpha, float beta, int currentDepth)
 {
 	Board* testBoard{};
@@ -501,44 +806,6 @@ float ChessPlayer::MiniMax(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces
 		}
 	}
 
-	/*if (pColour == m_colour)
-	{
-		for (unsigned int i = 0; i < fPieces.size(); i++)
-		{
-			if (getValidMovesForPiece(fPieces[i]).size() > 0)
-			{
-				if (moves.size() == 0)
-				{
-					moves = getValidMovesForPiece(fPieces[i]);
-				}
-				else
-				{
-					vector<std::shared_ptr<Move>> temp = getValidMovesForPiece(fPieces[i]);
-					moves.insert(moves.end(), temp.begin(), temp.end());
-				}
-			}
-		}
-	}
-	else
-	{
-		for (unsigned int i = 0; i < ePieces.size(); i++)
-		{
-			if (getValidMovesForPiece(ePieces[i]).size() > 0)
-			{
-				if (moves.size() == 0)
-				{
-					moves = getValidMovesForPiece(ePieces[i]);
-				}
-				else
-				{
-					vector<std::shared_ptr<Move>> temp = getValidMovesForPiece(ePieces[i]);
-					moves.insert(moves.end(), temp.begin(), temp.end());
-				}
-			}
-		}
-	}*/
-
-
 	if (moves.size() == 0)
 	{
 		return -99999;
@@ -562,12 +829,12 @@ float ChessPlayer::MiniMax(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces
 			alpha = max(alpha, minMaxEvaluation);
 			if (beta <= alpha)
 				break;
-				
+
 		}
 		else
 		{
 			PieceColor* invertCol = InvertColour(&pColour);
-			evaluation = MiniMax(testBoard, fPieces, ePieces, *invertCol, alpha, beta, currentDepth + 1);
+			evaluation = MiniMax(testBoard, fPieces, ePieces,*invertCol, alpha, beta, currentDepth + 1);
 			testBoard = pBoard;
 
 			if (evaluation < minMaxEvaluation)
@@ -579,4 +846,137 @@ float ChessPlayer::MiniMax(Board* pBoard, vecPieces& fPieces, vecPieces& ePieces
 		}
 	}
 	return minMaxEvaluation;
+}
+
+//NEGAMAX ATTEMPT
+
+std::shared_ptr<Move>	 ChessPlayer::negamaxRoot(int alpha, int beta, int depth, Board* pBoard, PieceColor pColour, vecPieces pieces)
+{
+	std::shared_ptr<Move>					bestMove{};
+	std::shared_ptr<Move>					bestMoveSoFar{};
+	Board copy{};
+	vector<std::shared_ptr<Move>>	moves;
+	float												minMaxEvaluation;
+	float												bestEvaluation;
+	// init old alpha
+	int old_alpha = alpha;
+
+	for (unsigned int i = 0; i < pieces.size(); i++)
+	{
+		if (getValidMovesForPiece(pieces[i]).size() > 0)
+		{
+			if (moves.size() == 0)
+			{
+				moves = getValidMovesForPiece(pieces[i]);
+			}
+			else
+			{
+				vector<std::shared_ptr<Move>> temp = getValidMovesForPiece(pieces[i]);
+				moves.insert(moves.end(), temp.begin(), temp.end());
+			}
+		}
+	}
+
+	minMaxEvaluation = -99999;
+
+	for (std::shared_ptr<Move> move : moves)
+	{
+		copy = *pBoard->hardCopy();
+		Gameplay::move(m_pGameStatus, &copy, move);
+		float evaluation;
+
+		PieceColor* invertCol = InvertColour(&pColour);
+		evaluation = -negamax(-beta, -alpha, depth - 1, &copy, pColour);
+		copy = *pBoard;
+
+		if (evaluation > minMaxEvaluation)
+		{
+			minMaxEvaluation = evaluation;
+			bestMove = move;
+			cout << "Current Best Eval " << minMaxEvaluation << endl;
+		}
+
+		if (alpha <= evaluation)
+		{
+			alpha = evaluation;
+			bestMoveSoFar = move;
+		}
+		if (beta <= alpha)
+			break;
+	}
+
+	// associate best move with best score
+	if (old_alpha != alpha)
+		bestMove = bestMoveSoFar;
+
+
+	return bestMove;
+}
+
+// negamax serach with alpha-beta pruning
+float ChessPlayer::negamax(int alpha, int beta, int depth, Board* pBoard, PieceColor pColour)
+{
+	std::shared_ptr<Move>					bestMove{};
+	// escape condition
+	if (depth == 0)
+		return Evaluation(pBoard, pColour);
+
+	// init old alpha
+	int old_alpha = alpha;
+
+	// init best move so far
+	std::shared_ptr<Move>					bestMoveSoFar{};
+
+	vector<std::shared_ptr<Move>> moves;
+	vecPieces fPieces;
+
+	for (unsigned int i = 0; i < fPieces.size(); i++)
+	{
+		if (getValidMovesForPiece(fPieces[i]).size() > 0)
+		{
+			if (moves.size() == 0)
+			{
+				moves = getValidMovesForPiece(fPieces[i]);
+			}
+			else
+			{
+				vector<std::shared_ptr<Move>> temp = getValidMovesForPiece(fPieces[i]);
+				moves.insert(moves.end(), temp.begin(), temp.end());
+			}
+		}
+	}
+
+	int score;
+	// loop over move list
+	for (std::shared_ptr<Move> move : moves)
+	{
+		// preserve board position
+		Board* copy = pBoard->hardCopy();
+		Gameplay::move(m_pGameStatus, copy, move);
+		// recursive negamax call
+		score = -negamax(-beta, -alpha, depth - 1, copy, pColour);
+
+		// take move back
+		copy = pBoard->hardCopy();
+
+		// fail hard beta cutoff
+		if (score >= beta)
+		{
+			return beta;
+		}
+
+		// found a better move
+		if (score > alpha)
+		{
+			// increase lower bound
+			alpha = score;
+			bestMoveSoFar = move;
+		}
+	}
+
+	// associate best move with best score
+	if (old_alpha != alpha)
+		bestMove = bestMoveSoFar;
+
+	return score;
 }
